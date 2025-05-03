@@ -6,17 +6,27 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name="users")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
-    private String name;
-    private String password;
+    @Column(unique=true)
     private String email;
+    @Column(nullable=false)
+    private String password;
+    @Column(nullable=false)
+    private String name;
     private String bio;
+    @Column(nullable=false)
     private String role;
     @ManyToMany
-    private List<User> Friends = new ArrayList<>();
+    @JoinTable(
+            name = "user_friends",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name="friends_id")
+    )
+    private List<User> friends = new ArrayList<User>();
 
     public String getRole() {
         return role;
@@ -65,12 +75,13 @@ public class User {
     public void setBio(String bio) {
         this.bio = bio;
     }
-
     public List<User> getFriends() {
-        return Friends;
+        return friends;
     }
 
     public void setFriends(List<User> friends) {
-        Friends = friends;
+        this.friends = friends;
     }
+
+
 }
