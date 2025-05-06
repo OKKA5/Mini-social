@@ -1,9 +1,10 @@
 package models;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 
-import java.util.ArrayList;
-import java.util.List;
+
+import java.util.Set;
 
 @Entity
 @Table(name="users")
@@ -17,16 +18,19 @@ public class User {
     private String password;
     @Column(nullable=false)
     private String name;
+    @Column(nullable=true)
+    @Size(max=100)
     private String bio;
     @Column(nullable=false)
     private String role;
-    @ManyToMany
-    @JoinTable(
-            name = "user_friends",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name="friends_id")
-    )
-    private List<User> friends = new ArrayList<User>();
+
+
+    @OneToMany(mappedBy = "requester", fetch = FetchType.LAZY)
+    private Set<Friend> outgoingFriendRequests;
+
+    @OneToMany(mappedBy = "receiver", fetch = FetchType.LAZY)
+    private Set<Friend> incomingFriendRequests;
+
 
     public String getRole() {
         return role;
@@ -75,13 +79,20 @@ public class User {
     public void setBio(String bio) {
         this.bio = bio;
     }
-    public List<User> getFriends() {
-        return friends;
+    public Set<Friend> getOutgoingFriendRequests() {
+        return outgoingFriendRequests;
     }
 
-    public void setFriends(List<User> friends) {
-        this.friends = friends;
+    public void setOutgoingFriendRequests(Set<Friend> outgoingFriendRequests) {
+        this.outgoingFriendRequests = outgoingFriendRequests;
     }
 
+    public Set<Friend> getIncomingFriendRequests() {
+        return incomingFriendRequests;
+    }
+
+    public void setIncomingFriendRequests(Set<Friend> incomingFriendRequests) {
+        this.incomingFriendRequests = incomingFriendRequests;
+    }
 
 }
