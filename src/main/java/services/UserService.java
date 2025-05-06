@@ -1,11 +1,15 @@
 package services;
 
+import DTOs.UserDTO;
 import ejbs.UserBean;
 import jakarta.ejb.EJB;
+import jakarta.ejb.Stateless;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import models.User;
+import java.io.Serializable;
 
+@Stateless
 @Path("/user")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -15,13 +19,18 @@ public class UserService {
 
     @GET
     @Path("{id}")
-    public User getUser(@PathParam("id") int id) {
+    public UserDTO getUser(@PathParam("id") int id) {
         return userBean.findUser(id);
     }
     
     @POST
-    public User createUser(User user) {
-        return userBean.createUser(user);
+    public String createUser(User user) {
+        return userBean.registerUser(user);
+    }
+    @PUT
+    @Path("{id}")
+    public String updateUser(@PathParam("id") int id, User user) {
+        return userBean.updateUser(id , user);
     }
 
 }
