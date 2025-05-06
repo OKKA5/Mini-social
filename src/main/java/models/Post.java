@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "posts")
+@Table(name = "post")
 public class Post {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,15 +16,12 @@ public class Post {
     @Column(nullable = true)
     private String ImageURL;
 
-    public void setUserID(int userID) {
-        UserID = userID;
-    }
 
-    @Column(nullable = false)
-    private int UserID;
-    public int getUserID() {
-        return UserID;
-    }
+
+
+    @ManyToOne
+    @JoinColumn(name = "UserId")
+    private User user;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Comment> Comments = new ArrayList<Comment>();
@@ -75,5 +72,12 @@ public class Post {
         Description = description;
     }
 
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
 
 }

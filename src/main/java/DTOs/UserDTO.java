@@ -11,6 +11,8 @@ public class UserDTO{
     private String role;
 
     private List<FriendDTO> friends;
+    private List<PostDTO> posts;
+
 
     // Constructors
     public UserDTO() {}
@@ -72,5 +74,11 @@ public class UserDTO{
     public void setFriends(List<FriendDTO> friends) {
         this.friends = friends;
     }
+    public List<PostDTO> getPosts() {
+        return posts;
+    }
 
+    public void setPosts(List<PostDTO> posts) {
+        this.posts = posts;
+    }
 }

@@ -31,6 +31,9 @@ public class User {
     @OneToMany(mappedBy = "receiver", fetch = FetchType.LAZY)
     private Set<Friend> incomingFriendRequests;
 
+    @OneToMany(mappedBy = "user" , fetch = FetchType.LAZY)
+    private Set<Post> posts;
+
 
     public String getRole() {
         return role;
@@ -93,6 +96,13 @@ public class User {
 
     public void setIncomingFriendRequests(Set<Friend> incomingFriendRequests) {
         this.incomingFriendRequests = incomingFriendRequests;
-}
+    }
+    public Set<Post> getPosts() {
+        return posts;
+    }
+
+    public void setPosts(Set<Post> posts) {
+        this.posts = posts;
+    }
 
 }

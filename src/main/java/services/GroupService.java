@@ -9,7 +9,6 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import models.Group;
 import models.GroupJoinRequest;
-import models.User;
 
 import java.util.List;
 import java.util.stream.Collectors;

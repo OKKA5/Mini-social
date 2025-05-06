@@ -18,20 +18,19 @@ public class FriendBean {
 
     public List<FriendDTO> viewConnections(int userId) {
         List<Friend> friends = em.createQuery(
-                        "SELECT f FROM Friend f WHERE f.requester.id = :userId AND f.status = :status", Friend.class)
+                        "SELECT f FROM Friend f WHERE (f.requester.id = :userId OR f.receiver.id = :userId) AND f.status = :status",
+                        Friend.class)
                 .setParameter("userId", userId)
                 .setParameter("status", Friend.Status.ACCEPTED)
                 .getResultList();
 
-        List<FriendDTO> friendDTOs = new ArrayList<>();
-        for (Friend friend : friends) {
-            friendDTOs.add(new FriendDTO(
-                    friend.getReceiver().getId(),
-                    friend.getReceiver().getName(),
-                    friend.getStatus().toString()
-            ));
+        List<FriendDTO> result = new ArrayList<>();
+        for (Friend f : friends) {
+            User other = (f.getRequester().getId() == userId) ? f.getReceiver() : f.getRequester();
+            result.add(new FriendDTO(other.getId(), other.getName(), f.getStatus().toString()));
         }
-        return friendDTOs;
+
+        return result;
     }
 
     public List<FriendDTO> getIncomingRequests(int userId) {
@@ -71,54 +70,53 @@ public class FriendBean {
     }
 
     public String friendRequest(int requesterId, int receiverId) {
-        if (requesterId == receiverId) return "You cannot send a friend request to yourself.";
+        if (requesterId == receiverId)
+            return "You cannot send a friend request to yourself.";
 
-        User requester = em.find(User.class, requesterId);
-        User receiver = em.find(User.class, receiverId);
+        User u1 = em.find(User.class, Math.min(requesterId, receiverId));
+        User u2 = em.find(User.class, Math.max(requesterId, receiverId));
 
-        if (requester == null || receiver == null) return "User not found.";
+        if (u1 == null || u2 == null)
+            return "User not found.";
 
         Long count = em.createQuery(
-                        "SELECT COUNT(f) FROM Friend f WHERE f.requester.id = :requesterId AND f.receiver.id = :receiverId",
-                        Long.class)
-                .setParameter("requesterId", requesterId)
-                .setParameter("receiverId", receiverId)
+                        "SELECT COUNT(f) FROM Friend f WHERE f.requester.id = :id1 AND f.receiver.id = :id2", Long.class)
+                .setParameter("id1", u1.getId())
+                .setParameter("id2", u2.getId())
                 .getSingleResult();
 
-        if (count > 0) return "Friend request already exists or users are already connected.";
-        Friend requestEntry = new Friend();
-        requestEntry.setRequester(requester);
-        requestEntry.setReceiver(receiver);
-        requestEntry.setStatus(Friend.Status.PENDING);
-        em.persist(requestEntry);
+        if (count > 0)
+            return "Friend request already exists or users are already connected.";
 
-        Friend reciprocalEntry = new Friend();
-        reciprocalEntry.setRequester(receiver);
-        reciprocalEntry.setReceiver(requester);
-        reciprocalEntry.setStatus(Friend.Status.PENDING);
-        em.persist(reciprocalEntry);
+        Friend friend = new Friend();
+        friend.setRequester(u1);
+        friend.setReceiver(u2);
+        friend.setStatus(Friend.Status.PENDING);
+        em.persist(friend);
 
         return "Friend request sent.";
     }
 
     public String acceptFriendRequest(int requesterId, int receiverId) {
-        List<Friend> receiverEntries = em.createQuery(
-                        "SELECT f FROM Friend f WHERE f.requester.id = :receiverId AND f.receiver.id = :requesterId AND f.status = :status",
+        int id1 = Math.min(requesterId, receiverId);
+        int id2 = Math.max(requesterId, receiverId);
+
+        List<Friend> list = em.createQuery(
+                        "SELECT f FROM Friend f WHERE f.requester.id = :id1 AND f.receiver.id = :id2 AND f.status = :status",
                         Friend.class)
-                .setParameter("receiverId", receiverId)
-                .setParameter("requesterId", requesterId)
+                .setParameter("id1", id1)
+                .setParameter("id2", id2)
                 .setParameter("status", Friend.Status.PENDING)
                 .getResultList();
 
-        if (receiverEntries.isEmpty()) return "No pending friend request found.";
+        if (list.isEmpty()) return "No pending friend request found.";
 
-        Friend receiverEntry = receiverEntries.get(0);
-        receiverEntry.setStatus(Friend.Status.ACCEPTED);
-        em.merge(receiverEntry);
+        Friend f = list.get(0);
+        f.setStatus(Friend.Status.ACCEPTED);
+        em.merge(f);
 
         return "Friend request accepted.";
     }
-
     public String rejectFriendRequest(int requesterId, int receiverId) {
         List<Friend> receiverEntries = em.createQuery(
                         "SELECT f FROM Friend f WHERE f.requester.id = :receiverId AND f.receiver.id = :requesterId AND f.status = :status",

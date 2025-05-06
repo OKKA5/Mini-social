@@ -1,15 +1,18 @@
 package ejbs;
 
 import DTOs.FriendDTO;
+import DTOs.PostDTO;
 import DTOs.UserDTO;
 import jakarta.ejb.Stateless;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import models.Friend;
+import models.Post;
 import models.User;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Stateless
 public class UserBean {
@@ -47,20 +50,26 @@ public class UserBean {
                 .getResultList();
 
         // 4) map them into FriendDTOs
-        List<FriendDTO> friends = new ArrayList<>(accepted.size());
+        List<FriendDTO> friendsDTOs = new ArrayList<>(accepted.size());
         for (Friend f : accepted) {
             // figure out which side is "me" and which is "the other"
             User friendUser = (f.getRequester().getId() == userId)
                     ? f.getReceiver()
                     : f.getRequester();
 
-            friends.add(new FriendDTO(
+            friendsDTOs.add(new FriendDTO(
                     friendUser.getId(),
                     friendUser.getName(),
                     f.getStatus().name()
             ));
         }
-        userDTO.setFriends(friends);
+        userDTO.setFriends(friendsDTOs);
+
+
+
+        userDTO.setFriends(friendsDTOs);
+
+
 
         return userDTO;
     }
@@ -86,6 +95,22 @@ public class UserBean {
             return "nothing to be updated";
         }
 
+    }
+    public String userLogin(String email, String password) {
+        try {
+            List<User> users = em.createQuery(
+                            "SELECT u FROM User u WHERE u.email = :email", User.class)
+                    .setParameter("email", email)
+                    .getResultList();
+            User user = users.get(0);
+            if (user.getPassword().equals(password)) {
+                return "User logged in successfully";
+            } else {
+                return "Incorrect password";
+            }
+        }catch (Exception e){
+            return "wrong email";
+        }
     }
 
 

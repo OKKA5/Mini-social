@@ -13,6 +13,10 @@ public class Comment {
     @Column(nullable = false)
     private String comment;
 
+
+    @Column(nullable = false)
+    private int commenterId;
+
     @Column(nullable = false)
     private String author;
 
@@ -39,6 +43,14 @@ public class Comment {
     public void setComment(String comment) {
         this.comment = comment;
     }
+    public int getCommenterId() {
+        return commenterId;
+    }
+
+    public void setCommenterId(int commenterId) {
+        this.commenterId = commenterId;
+    }
+
 
     public String getAuthor() {
         return author;

@@ -9,7 +9,7 @@ import jakarta.ws.rs.core.MediaType;
 import models.User;
 
 @Stateless
-@Path("/user")
+@Path("user")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class UserService {
@@ -23,6 +23,7 @@ public class UserService {
     }
 
     @POST
+    @Path(("register"))
     public String createUser(User user) {
         return userBean.registerUser(user);
     }
@@ -30,6 +31,11 @@ public class UserService {
     @Path("{id}")
     public String updateUser(@PathParam("id") int id, User user) {
         return userBean.updateUser(id , user);
+    }
+    @POST
+    @Path("login")
+    public String userLogin(String email, String password) {
+        return userBean.userLogin(email, password);
     }
 
 }

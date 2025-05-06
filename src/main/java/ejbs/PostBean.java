@@ -1,13 +1,14 @@
 package ejbs;
 
+import DTOs.CommentDTO;
+import DTOs.PostDTO;
+import DTOs.ReactionDTO;
 import jakarta.ejb.Stateless;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import models.Post;
-import models.Comment;
-import models.Reaction;
-import models.User;
+import models.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Stateless
@@ -15,47 +16,67 @@ public class PostBean {
     @PersistenceContext
     private EntityManager em;
 
-    public Post findPost(int postId) {
+
+    public PostDTO findPost(int postId) {
         Post p = em.find(Post.class, postId);
         if (p == null) {
             throw new IllegalArgumentException("Post not found with id: " + postId);
         } else {
-            return p;
+            return new PostDTO().toPostDTO(p);
         }
     }
 
-    public List<Post> findAllPosts(int userId) {
+    public List<PostDTO> findAllPosts(int userId) {
         User user = em.find(User.class, userId);
 
         if (user == null) {
             throw new IllegalArgumentException("User with ID " + userId + " does not exist.");
         } else {
-            return em.createQuery("SELECT p FROM Post p WHERE p.UserID = :userId", Post.class)
+            List <Post> userPosts = em.createQuery("SELECT p FROM Post p WHERE p.user.id = :userId", Post.class)
                     .setParameter("userId", userId)
                     .getResultList();
+            List<Post> requesterFriendsPosts = em.createQuery("""
+            SELECT p FROM Post p
+            WHERE p.user.id IN (
+            SELECT f.receiver.id FROM Friend f 
+            WHERE f.requester.id = :userId AND f.status = 'ACCEPTED'
+                            )
+            """, Post.class).setParameter("userId", userId).getResultList();
 
+            List<Post> receiverFriendsPosts = em.createQuery("""
+            SELECT p FROM Post p
+            WHERE p.user.id IN (
+            SELECT f.requester.id FROM Friend f 
+            WHERE f.receiver.id = :userId AND f.status = 'ACCEPTED'
+                            )
+            """, Post.class).setParameter("userId", userId).getResultList();
+
+            List<Post> userFriendsPosts = new ArrayList<>();
+            userFriendsPosts.addAll(requesterFriendsPosts);
+            userFriendsPosts.addAll(receiverFriendsPosts);
+            List <Post> feed = new ArrayList<>();
+            feed.addAll(userPosts);
+            feed.addAll(userFriendsPosts);
+
+
+            List <PostDTO> postDTOs = new ArrayList<>();
+            for (Post p : feed) {
+                PostDTO dto = new PostDTO().toPostDTO(p);
+                postDTOs.add(dto.toPostDTO(p));
+            }
+            return postDTOs;
         }
 
     }
 
 
-    public Post createPost(int UserID, Post post) {
-        Post p = em.find(Post.class, UserID);
-        if (p == null) throw new IllegalArgumentException("User not found");
-        if (post.getComments() != null) {
-            for (Comment comment : post.getComments()) {
-                comment.setPost(post);
-            }
-        }
-
-        if (post.getReactions() != null) {
-            for (Reaction reaction : post.getReactions()) {
-                reaction.setPost(post);
-            }
-        }
-        post.setUserID(UserID);
+    public String createPost(int UserID, Post post) {
+        User u = em.find(User.class, UserID);
+        if (u == null) throw new IllegalArgumentException("User not found");
+        post.setUser(u);
         em.persist(post);
-        return post;
+
+        return "Post created successfully";
     }
 
     public Post updatePost(int postId, Post post) {
@@ -79,21 +100,27 @@ public class PostBean {
         }
     }
 
-    public void addCommentToPost(int postId, Comment comment) {
+    public void addCommentToPost(int userId,int postId, Comment comment) {
         Post post = em.find(Post.class, postId);
+        User user = em.find(User.class, userId);
         if (post == null) {
             throw new IllegalArgumentException("Post not found with ID: " + postId);
         }
+        comment.setCommenterId(user.getId());
+        comment.setAuthor(user.getName());
         comment.setPost(post);
         post.getComments().add(comment);
         em.persist(comment);
     }
 
-    public void addReactionToPost(int postId, Reaction reaction) {
+    public void addReactionToPost(int userId,int postId, Reaction reaction) {
+        User user = em.find(User.class, userId);
         Post post = em.find(Post.class, postId);
         if (post == null) {
             throw new IllegalArgumentException("Post not found with ID: " + postId);
         }
+        reaction.setReactorId(user.getId());
+        reaction.setAuthor(user.getName());
         reaction.setPost(post);
         post.getReactions().add(reaction);
         em.persist(reaction);

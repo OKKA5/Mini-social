@@ -13,6 +13,10 @@ public class Reaction {
     @Column(nullable = false)
     private String reaction;
 
+
+    @Column(nullable = false)
+    private int reactorId;
+
     @Column(nullable = false)
     private String author;
 
@@ -39,6 +43,15 @@ public class Reaction {
     public void setReaction(String reaction) {
         this.reaction = reaction;
     }
+
+    public int getReactorId() {
+        return reactorId;
+    }
+
+    public void setReactorId(int reactorId) {
+        this.reactorId = reactorId;
+    }
+
 
     public String getAuthor() {
         return author;
