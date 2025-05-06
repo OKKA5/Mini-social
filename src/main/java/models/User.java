@@ -93,6 +93,6 @@ public class User {
 
     public void setIncomingFriendRequests(Set<Friend> incomingFriendRequests) {
         this.incomingFriendRequests = incomingFriendRequests;
-    }
+}
 
 }

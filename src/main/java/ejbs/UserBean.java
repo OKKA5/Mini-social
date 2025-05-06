@@ -17,7 +17,7 @@ public class UserBean {
     EntityManager em;
     public String registerUser(User user) {
         if (em.contains(user)) {
-         return "User is already registered";
+            return "User is already registered";
         }else{
             em.persist(user);
             return "User registered successfully!";

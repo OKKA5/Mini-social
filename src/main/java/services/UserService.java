@@ -7,7 +7,6 @@ import jakarta.ejb.Stateless;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import models.User;
-import java.io.Serializable;
 
 @Stateless
 @Path("/user")
@@ -22,7 +21,7 @@ public class UserService {
     public UserDTO getUser(@PathParam("id") int id) {
         return userBean.findUser(id);
     }
-    
+
     @POST
     public String createUser(User user) {
         return userBean.registerUser(user);
