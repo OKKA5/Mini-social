@@ -126,5 +126,29 @@ public class PostBean {
         em.persist(reaction);
     }
 
+    public String addPostToGroup(int userId, int groupId, String description, String imageUrl) {
+        Group group = em.find(Group.class, groupId);
+        User user = em.find(User.class, userId);
+
+        if (group == null || user == null) {
+            return "Group or User not found";
+        }
+
+        if (!group.getMembers().contains(user)) {
+            return "User is not a member of the group";
+        }
+
+        Post post = new Post();
+        post.setDescription(description);
+        post.setImageURL(imageUrl);
+        post.setUser(user);
+        post.setGroups(group);
+
+        em.persist(post);
+        return "Post added successfully";
+    }
+
+
+
 
 }

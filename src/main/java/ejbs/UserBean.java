@@ -97,21 +97,23 @@ public class UserBean {
 
     }
     public String userLogin(String email, String password) {
-        try {
-            List<User> users = em.createQuery(
-                            "SELECT u FROM User u WHERE u.email = :email", User.class)
-                    .setParameter("email", email)
-                    .getResultList();
-            User user = users.get(0);
-            if (user.getPassword().equals(password)) {
-                return "User logged in successfully";
-            } else {
-                return "Incorrect password";
-            }
-        }catch (Exception e){
-            return "wrong email";
+        List<User> users = em.createQuery(
+                        "SELECT u FROM User u WHERE u.email = :email", User.class)
+                .setParameter("email", email)
+                .getResultList();
+
+        if (users.isEmpty()) {
+            return "Wrong email";
+        }
+
+        User user = users.get(0);
+        if (user.getPassword().equals(password)) {
+            return "User logged in successfully";
+        } else {
+            return "Incorrect password";
         }
     }
+
 
 
 }

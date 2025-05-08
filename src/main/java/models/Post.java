@@ -31,6 +31,7 @@ public class Post {
     private List<Reaction> reactions = new ArrayList<Reaction>();
 
 
+
     public List<Reaction> getReactions() {
         return reactions;
     }
@@ -80,4 +81,14 @@ public class Post {
         this.user = user;
     }
 
+    @ManyToOne(optional = false)
+    private Group groups;
+
+    public Group getGroups() {
+        return groups;
+    }
+
+    public void setGroups(Group groups) {
+        this.groups = groups;
+    }
 }

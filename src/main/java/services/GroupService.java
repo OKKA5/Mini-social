@@ -2,6 +2,7 @@ package services;
 
 import DTOs.GroupDTO;
 import DTOs.GroupJoinRequestDTO;
+import DTOs.PostDTO;
 import ejbs.GroupBean;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Stateless;
@@ -22,31 +23,18 @@ public class GroupService {
     @EJB
     private GroupBean groupBean;
 
-    private GroupDTO toGroupDTO(Group group) {
-        GroupDTO dto = new GroupDTO();
-        dto.setId(group.getId());
-        dto.setName(group.getName());
-        dto.setDescription(group.getDescription());
-        dto.setCreator(group.getCreator().getName());
-        dto.setStatus(group.getStatus());
-        return dto;
-    }
 
     @POST
     @Path("/create/{UserId}")
-    public GroupDTO createGroup(@PathParam("UserId") int UserId, GroupDTO groupDTO) {
-        Group createdGroup = groupBean.createGroup(UserId, groupDTO);
-        return toGroupDTO(createdGroup);
+    public GroupDTO createGroup(@PathParam("UserId") int UserId, Group group) {
+        return groupBean.createGroup(UserId, group);
+
     }
 
     @GET
     @Path("/{id}")
     public GroupDTO getGroup(@PathParam("id") int groupId) {
-        Group group = groupBean.findGroupById(groupId);
-        if (group == null) {
-            throw new NotFoundException("Group not found");
-        }
-        return toGroupDTO(group);
+        return groupBean.findGroupById(groupId);
     }
 
     @POST
@@ -83,16 +71,10 @@ public class GroupService {
         return "User promoted to admin";
     }
 
-    @GET
-    @Path("/usergroups/{userId}")
-    public List<GroupDTO> getGroupsForUser(@PathParam("userId") int userId) {
-        List<Group> groups = groupBean.findGroupsForUser(userId);
-        return groups.stream().map(this::toGroupDTO).collect(Collectors.toList());
-    }
 
     @POST
-    @Path("/{groupId}/join/{userId}")
-    public String joinGroup(@PathParam("groupId") int groupId, @PathParam("userId") int userId) {
+    @Path("/join")
+    public String joinGroup(@QueryParam("groupId") int groupId, @QueryParam("userId") int userId) {
         return groupBean.requestToJoinGroup(userId, groupId);
     }
 
@@ -120,6 +102,12 @@ public class GroupService {
                         r.getUser().getName(),
                         r.getStatus()))
                 .toList();
+    }
+
+    @POST
+    @Path("/add-post")
+    public String addPostToGroup(@QueryParam("groupId") int groupId, PostDTO postDTO ,@QueryParam("UserId") int UserId) {
+        return groupBean.addPostToGroup(postDTO, groupId,UserId);
     }
 
 }

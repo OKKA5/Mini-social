@@ -1,10 +1,13 @@
 package DTOs;
 
+import models.GroupJoinRequest;
+
 public class GroupJoinRequestDTO {
+
     private int requestId;
     private int userId;
     private String userName;
-    private String status;
+    private GroupJoinRequest.Status status;
 
     public String getUserName() {
         return userName;
@@ -14,11 +17,11 @@ public class GroupJoinRequestDTO {
         this.userName = userName;
     }
 
-    public String getStatus() {
+    public GroupJoinRequest.Status getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(GroupJoinRequest.Status status) {
         this.status = status;
     }
 
@@ -40,7 +43,7 @@ public class GroupJoinRequestDTO {
 
 
     // Constructor
-    public GroupJoinRequestDTO(int requestId, int userId, String userName, String status) {
+    public GroupJoinRequestDTO(int requestId, int userId, String userName, GroupJoinRequest.Status status) {
         this.requestId = requestId;
         this.userId = userId;
         this.userName = userName;

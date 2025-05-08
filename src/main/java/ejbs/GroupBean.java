@@ -2,6 +2,7 @@ package ejbs;
 
 import DTOs.GroupDTO;
 
+import DTOs.PostDTO;
 import jakarta.ejb.Stateless;
 
 import jakarta.persistence.EntityManager;
@@ -10,10 +11,14 @@ import jakarta.persistence.TypedQuery;
 
 import models.Group;
 import models.GroupJoinRequest;
+import models.Post;
 import models.User;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static models.GroupJoinRequest.Status.ACCEPTED;
+import static models.GroupJoinRequest.Status.PENDING;
 
 @Stateless
 public class GroupBean {
@@ -21,17 +26,13 @@ public class GroupBean {
     @PersistenceContext
     private EntityManager em;
 
-
-    public Group createGroup(int UserId, GroupDTO groupDTO) {
+    public GroupDTO createGroup(int UserId, Group group) {
         User creator = em.find(User.class, UserId);
         if (creator == null) {
             throw new IllegalArgumentException("User not found");
         }
 
-        Group group = new Group();
-        group.setName(groupDTO.getName());
-        group.setDescription(groupDTO.getDescription());
-        group.setStatus(groupDTO.getStatus());
+
         group.setCreator(creator);
 
         List<User> initialMembers = new ArrayList<>();
@@ -41,13 +42,22 @@ public class GroupBean {
         List<User> admins = new ArrayList<>();
         admins.add(creator);
         group.setAdmins(admins);
+        GroupDTO groupDto = new GroupDTO().toGroupDTO(group);
+
 
         em.persist(group);
-        return group;
+        return groupDto;
     }
 
-    public Group findGroupById(int groupId) {
-        return em.find(Group.class, groupId);
+    public GroupDTO findGroupById(int groupId) {
+        Group group = em.find(Group.class, groupId);
+        if (group == null) {
+            {
+                throw new IllegalArgumentException("Group Doesnt Exist");
+            }
+        }
+        GroupDTO groupDto = new GroupDTO().toGroupDTO(group);
+        return groupDto;
     }
 
     public String joinGroup(int groupId, int userId) {
@@ -115,31 +125,48 @@ public class GroupBean {
         if (user == null || group == null) return "User or Group not found";
 
         if (group.getStatus().equalsIgnoreCase("open")) {
-            group.getMembers().add(user);
-            em.merge(group);
-            return "Joined group directly (open group)";
+            if (!group.getMembers().contains(user)) {
+                group.getMembers().add(user);
+                em.merge(group);
+                return "Joined group directly (open group)";
+            } else {
+                return "User is already a member of the group";
+            }
         }
+
+        TypedQuery<GroupJoinRequest> query = em.createQuery(
+                "SELECT r FROM GroupJoinRequest r WHERE r.user.id = :userId",
+                GroupJoinRequest.class
+        );
+        query.setParameter("userId", userId);
+        if (!query.getResultList().isEmpty()) {
+            throw new IllegalArgumentException("Already sent join request");
+        }
+
 
         GroupJoinRequest request = new GroupJoinRequest();
         request.setUser(user);
         request.setGroup(group);
-        request.setStatus("pending");
+        request.setStatus(GroupJoinRequest.Status.PENDING);
         em.persist(request);
+
         return "Request sent and pending admin approval";
     }
 
+
     public String approveRequest(int requestId) {
         GroupJoinRequest request = em.find(GroupJoinRequest.class, requestId);
-        if (request == null || !"pending".equals(request.getStatus())) return "Invalid request";
+        if (request == null || !PENDING.equals(request.getStatus())) return "Invalid request";
 
         Group group = request.getGroup();
         User user = request.getUser();
 
         group.getMembers().add(user);
-        request.setStatus("approved");
+        request.setStatus(ACCEPTED);
+
 
         em.merge(group);
-        em.merge(request);
+        em.remove(request);
 
 
         return "Request approved";
@@ -147,10 +174,8 @@ public class GroupBean {
 
     public String rejectRequest(int requestId) {
         GroupJoinRequest request = em.find(GroupJoinRequest.class, requestId);
-        if (request == null || !"pending".equals(request.getStatus())) return "Invalid request";
-
-        request.setStatus("rejected");
-        em.merge(request);
+        if (request == null || !PENDING.equals(request.getStatus())) return "Invalid request";
+        em.remove(request);
         return "Request rejected";
     }
 
@@ -161,6 +186,32 @@ public class GroupBean {
         }
 
         return em.createQuery("SELECT r FROM GroupJoinRequest r WHERE r.group.id = :groupId AND r.status = 'pending'", GroupJoinRequest.class).setParameter("groupId", groupId).getResultList();
+    }
+
+    public String addPostToGroup(PostDTO postDTO, int groupId, int userId) {
+        User user = em.find(User.class, userId);
+        Group group = em.find(Group.class, groupId);
+
+        if (user == null || group == null) {
+            return "User or group not found";
+        }
+
+        if ("closed".equalsIgnoreCase(group.getStatus())) {
+            if (!group.getMembers().contains(user)) {
+                return "User is not a member of the closed group";
+            }
+        }
+
+        Post post = new Post();
+        post.setUser(user);
+        post.setGroups(group);
+        post.setDescription(postDTO.getDescription());
+        post.setImageURL(postDTO.getImageURL());
+
+        em.persist(post);
+        em.merge(group);
+
+        return "Post added to group successfully";
     }
 
 

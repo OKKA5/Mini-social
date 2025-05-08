@@ -1,6 +1,10 @@
 package DTOs;
 
+import models.Group;
+import models.User;
+
 import java.util.List;
+import java.util.Set;
 
 public class GroupDTO {
     private int id;
@@ -9,7 +13,53 @@ public class GroupDTO {
     private String creator; // username of the creator
     private String status; // "open" or "closed"
     private List<String> members; // usernames of members
-    private List<String> admins;  // usernames of admins
+    private List<String> admins;
+    private List<GroupJoinRequestDTO> requests;
+
+
+    private List<PostDTO> posts;
+    // usernames of admins
+
+    public GroupDTO toGroupDTO(Group group) {
+        GroupDTO dto = new GroupDTO();
+
+        dto.setId(group.getId());
+        dto.setName(group.getName());
+        dto.setDescription(group.getDescription());
+        dto.setCreator(group.getCreator().getName());
+        dto.setStatus(group.getStatus());
+
+        List<String> memberNames = group.getMembers().stream()
+                .map(User::getName)
+                .toList();
+        dto.setMembers(memberNames);
+
+        // Convert admin users to list of usernames
+        List<String> adminNames = group.getAdmins().stream()
+                .map(User::getName)
+                .toList();
+        dto.setAdmins(adminNames);
+
+        if (group.getRequests() != null) {
+            dto.setRequests(group.getRequests().stream()
+                    .map(request -> new GroupJoinRequestDTO(
+                            request.getId(),
+                            request.getUser().getId(),
+                            request.getUser().getName(),
+                            request.getStatus()))
+                    .toList());
+        } else {
+            dto.setRequests(List.of());
+        }
+        if (group.getPosts() != null) {
+            dto.setPosts(group.getPosts().stream()
+                    .map(post -> new PostDTO().toPostDTO(post))
+                    .toList());
+        } else {
+            dto.setPosts(List.of());
+        }
+        return dto;
+    }
 
     // Constructors
     public GroupDTO() {
@@ -27,6 +77,21 @@ public class GroupDTO {
     }
 
     // Getters and Setters
+    public List<PostDTO> getPosts() {
+        return posts;
+    }
+
+    public void setPosts(List<PostDTO> posts) {
+        this.posts = posts;
+    }
+
+    public List<GroupJoinRequestDTO> getRequests() {
+        return requests;
+    }
+
+    public void setRequests(List<GroupJoinRequestDTO> requests) {
+        this.requests = requests;
+    }
 
     public int getId() {
         return id;

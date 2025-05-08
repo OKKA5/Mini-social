@@ -5,9 +5,20 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "group_join_requests")
 public class GroupJoinRequest {
+    public enum Status {ACCEPTED, REJECTED, PENDING}
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
+    @ManyToOne
+    private User user;
+
+    @ManyToOne
+    private Group group;
+
+    @Column(nullable = false)
+    private Status status;
+
 
     public int getId() {
         return id;
@@ -33,22 +44,13 @@ public class GroupJoinRequest {
         this.group = group;
     }
 
-    public String getStatus() {
+    public Status getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(Status status) {
         this.status = status;
     }
-
-    @ManyToOne
-    private User user;
-
-    @ManyToOne
-    private Group group;
-
-    @Column(nullable = false)
-    private String status;
 
 
 }

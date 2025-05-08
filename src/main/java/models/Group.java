@@ -2,7 +2,9 @@ package models;
 
 import jakarta.persistence.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "groups") // Avoid reserved word "group"
@@ -19,7 +21,7 @@ public class Group {
     private String description;
 
     @Column(nullable = false)
-    private String status; // "open" or "closed"
+    private String status;
 
     @ManyToOne
     @JoinColumn(name = "creator_id", nullable = false)
@@ -33,6 +35,7 @@ public class Group {
     )
     private List<User> members;
 
+
     @ManyToMany
     @JoinTable(
             name = "group_admins",
@@ -41,7 +44,32 @@ public class Group {
     )
     private List<User> admins;
 
+    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GroupJoinRequest> requests = new ArrayList<>();
+
+
+
+    @OneToMany(mappedBy = "groups", fetch = FetchType.LAZY)
+    private List<Post> posts;
+
+
+
     // Getters and Setters
+    public List<Post> getPosts() {
+        return posts;
+    }
+
+    public void setPosts(List<Post> posts) {
+        this.posts = posts;
+    }
+
+    public List<GroupJoinRequest> getRequests() {
+        return requests;
+    }
+
+    public void setRequests(List<GroupJoinRequest> requests) {
+        this.requests = requests;
+    }
 
     public int getId() {
         return id;
