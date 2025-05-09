@@ -16,9 +16,6 @@ public class Post {
     @Column(nullable = true)
     private String ImageURL;
 
-
-
-
     @ManyToOne
     @JoinColumn(name = "UserId")
     private User user;
@@ -30,6 +27,16 @@ public class Post {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Reaction> reactions = new ArrayList<Reaction>();
 
+    @ManyToOne(optional = true)
+    private Group groups;
+
+    public Group getGroups() {
+        return groups;
+    }
+
+    public void setGroups(Group groups) {
+        this.groups = groups;
+    }
 
 
     public List<Reaction> getReactions() {
@@ -81,14 +88,5 @@ public class Post {
         this.user = user;
     }
 
-    @ManyToOne(optional = false)
-    private Group groups;
 
-    public Group getGroups() {
-        return groups;
-    }
-
-    public void setGroups(Group groups) {
-        this.groups = groups;
-    }
 }

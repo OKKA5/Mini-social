@@ -32,9 +32,7 @@ public class GroupBean {
             throw new IllegalArgumentException("User not found");
         }
 
-
         group.setCreator(creator);
-
         List<User> initialMembers = new ArrayList<>();
         initialMembers.add(creator);
         group.setMembers(initialMembers);
@@ -82,7 +80,6 @@ public class GroupBean {
         if (!group.getMembers().contains(user)) {
             group.getMembers().add(user);
             em.merge(group);
-            // Send JMS notification
         }
     }
 
@@ -90,7 +87,7 @@ public class GroupBean {
         Group group = em.find(Group.class, groupId);
         User user = em.find(User.class, userId);
         group.getMembers().remove(user);
-        group.getAdmins().remove(user); // also remove from admins if needed
+        group.getAdmins().remove(user);
         em.merge(group);
     }
 
@@ -101,14 +98,6 @@ public class GroupBean {
         }
     }
 
-    public void promoteToAdmin(int groupId, int userId) {
-        Group group = em.find(Group.class, groupId);
-        User user = em.find(User.class, userId);
-        if (!group.getAdmins().contains(user) && group.getMembers().contains(user)) {
-            group.getAdmins().add(user);
-            em.merge(group);
-        }
-    }
 
     public List<Group> findGroupsForUser(int userId) {
         User user = em.find(User.class, userId);
@@ -152,7 +141,6 @@ public class GroupBean {
 
         return "Request sent and pending admin approval";
     }
-
 
     public String approveRequest(int requestId) {
         GroupJoinRequest request = em.find(GroupJoinRequest.class, requestId);
@@ -214,5 +202,120 @@ public class GroupBean {
         return "Post added to group successfully";
     }
 
+    public String removePostFromGroup(int postId, int groupId, int userId) {
+        Post post = em.find(Post.class, postId);
+        User user = em.find(User.class, userId);
+        Group group = em.find(Group.class, groupId);
+        if (user == null || group == null) {
+            return "User or group not found";
+        }
+        if (post == null) {
+            return "Post not found";
+        }
+
+        boolean isPostOwner = post.getUser().getId() == userId;
+        boolean isGroupAdmin = group.getAdmins().contains(user);
+        boolean isGroupMember = group.getMembers().contains(user);
+
+        if ((isGroupAdmin && isGroupMember) || isPostOwner) {
+            em.remove(post);
+            return "Post removed from group successfully";
+        } else {
+            return "You are not authorized to remove this post";
+        }
+    }
+
+    public String DeleteGroup(int groupId, int userId) {
+        User user = em.find(User.class, userId);
+        Group group = em.find(Group.class, groupId);
+        boolean isGroupAdmin = group.getAdmins().contains(user);
+
+        if (isGroupAdmin) {
+            em.remove(group);
+            return "group Deleted successfully";
+        } else {
+            return "You are not authorized to delete this group";
+        }
+    }
+
+    public String DeleteUserFromGroup(int groupId, int adminId, int userId) {
+        User user = em.find(User.class, userId);
+        User admin = em.find(User.class, adminId);
+        Group group = em.find(Group.class, groupId);
+        if (user == null || admin == null || group == null) {
+            return "User, admin, or group not found";
+        }
+        boolean isGroupAdmin = group.getAdmins().contains(admin);
+        boolean isGroupMember = group.getMembers().contains(user);
+        if (!isGroupAdmin) {
+            return "You are not authorized to remove this user";
+        }
+        if (userId == adminId) {
+            return "You cannot remove yourself instead you can leave this group";
+        }
+        if (!isGroupMember) {
+            return "User is not a member of the group";
+        }
+        group.getMembers().remove(user);
+        em.merge(group);
+        return "User removed from group successfully";
+    }
+
+    public String promoteToAdmin(int groupId, int userId, int adminId) {
+        Group group = em.find(Group.class, groupId);
+        User user = em.find(User.class, userId);
+        User admin = em.find(User.class, adminId);
+        if (user == null || admin == null || group == null) {
+            return "User, admin, or group not found";
+        }
+        boolean isGroupMember = group.getMembers().contains(user);
+        boolean isGroupAdmin = group.getAdmins().contains(admin);
+        if (!isGroupMember) {
+            return "the user with id : " + userId + "is not a member of the group";
+        }
+        if (userId == adminId) {
+            return "you are already an admin";
+        }
+        if (!isGroupAdmin) {
+            return "You are not authorized to promote users";
+        } else {
+            group.getAdmins().add(user);
+            return "user promoted";
+        }
+    }
+
+    public String LeaveGroup(int groupId, int userId) {
+        User user = em.find(User.class, userId);
+        Group group = em.find(Group.class, groupId);
+        if (user == null || group == null) {
+            return "User or group not found";
+        }
+        boolean isGroupMember = group.getMembers().contains(user);
+        boolean isGroupAdmin = group.getAdmins().contains(user);
+
+        if (!isGroupMember) {
+            return "user is not a member of that group ";
+        }
+        if (isGroupAdmin && isGroupMember) {
+            group.getAdmins().remove(user);
+            group.getMembers().remove(user);
+            if (group.getAdmins().size() == 0) {
+                if (group.getMembers().size() == 0) {
+                    em.remove(group);
+                    return "Group removed";
+                } else {
+                    group.getAdmins().add(group.getMembers().get(0));
+                }
+            }
+
+            return "Left Group";
+        }
+        if (isGroupMember) {
+            group.getMembers().remove(user);
+            return "Left Group";
+        }
+        em.merge(group);
+        return "left Group";
+    }
 
 }

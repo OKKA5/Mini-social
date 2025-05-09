@@ -4,6 +4,7 @@ import DTOs.GroupDTO;
 import DTOs.GroupJoinRequestDTO;
 import DTOs.PostDTO;
 import ejbs.GroupBean;
+import jakarta.data.repository.Delete;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Stateless;
 import jakarta.ws.rs.*;
@@ -65,10 +66,16 @@ public class GroupService {
     }
 
     @POST
-    @Path("/promote/{groupId}/{userId}")
-    public String promoteToAdmin(@PathParam("groupId") int groupId, @PathParam("userId") int userId) {
-        groupBean.promoteToAdmin(groupId, userId);
-        return "User promoted to admin";
+    @Path("/promote")
+    public String promoteToAdmin(@QueryParam("groupId") int groupId, @QueryParam("userId") int userId, @QueryParam("adminId") int adminId) {
+        return groupBean.promoteToAdmin(groupId, userId, adminId);
+
+    }
+
+    @DELETE
+    @Path("/remove")
+    public String removePostFromGroup(@QueryParam("postId") int postId, @QueryParam("groupId") int groupId, @QueryParam("userId") int userId) {
+        return groupBean.removePostFromGroup(postId, groupId, userId);
     }
 
 
@@ -106,8 +113,28 @@ public class GroupService {
 
     @POST
     @Path("/add-post")
-    public String addPostToGroup(@QueryParam("groupId") int groupId, PostDTO postDTO ,@QueryParam("UserId") int UserId) {
-        return groupBean.addPostToGroup(postDTO, groupId,UserId);
+    public String addPostToGroup(@QueryParam("groupId") int groupId, PostDTO postDTO, @QueryParam("UserId") int UserId) {
+        return groupBean.addPostToGroup(postDTO, groupId, UserId);
     }
 
+    @DELETE
+    @Path("/Delete")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String DeleteGroup(@QueryParam("groupId") int groupId, @QueryParam("AdminId") int UserId) {
+        return groupBean.DeleteGroup(groupId, UserId);
+    }
+
+    @DELETE
+    @Path("/DeleteGroupUser")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String DeleteUserFromGroup(@QueryParam("groupId") int groupId, @QueryParam("AdminId") int AdminId, @QueryParam("UserId") int UserId) {
+        return groupBean.DeleteUserFromGroup(groupId, AdminId, UserId);
+    }
+
+    @DELETE
+    @Path("/Leave")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String LeaveGroup(@QueryParam("groupId") int groupId, @QueryParam("UserId") int UserId) {
+        return groupBean.LeaveGroup(groupId, UserId);
+    }
 }
