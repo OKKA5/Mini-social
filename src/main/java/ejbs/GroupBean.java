@@ -83,27 +83,11 @@ public class GroupBean {
         }
     }
 
-    public void leaveGroup(int groupId, int userId) {
-        Group group = em.find(Group.class, groupId);
-        User user = em.find(User.class, userId);
-        group.getMembers().remove(user);
-        group.getAdmins().remove(user);
-        em.merge(group);
-    }
-
     public void deleteGroup(int groupId) {
         Group group = em.find(Group.class, groupId);
         if (group != null) {
             em.remove(group);
         }
-    }
-
-
-    public List<Group> findGroupsForUser(int userId) {
-        User user = em.find(User.class, userId);
-        TypedQuery<Group> query = em.createQuery("SELECT g FROM Group g JOIN g.members m WHERE m.id = :userId", Group.class);
-        query.setParameter("userId", userId);
-        return query.getResultList();
     }
 
 

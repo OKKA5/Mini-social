@@ -4,7 +4,6 @@ import DTOs.GroupDTO;
 import DTOs.GroupJoinRequestDTO;
 import DTOs.PostDTO;
 import ejbs.GroupBean;
-import jakarta.data.repository.Delete;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Stateless;
 import jakarta.ws.rs.*;
@@ -13,7 +12,7 @@ import models.Group;
 import models.GroupJoinRequest;
 
 import java.util.List;
-import java.util.stream.Collectors;
+
 
 @Stateless
 @Path("/group")
@@ -38,24 +37,12 @@ public class GroupService {
         return groupBean.findGroupById(groupId);
     }
 
-    @POST
-    @Path("/join/{groupId}/{userId}")
-    public String requestToJoinGroup(@PathParam("groupId") int groupId, @PathParam("userId") int userId) {
-        return groupBean.joinGroup(groupId, userId);
-    }
 
     @POST
     @Path("/approve/{groupId}/{userId}")
     public String approveMember(@PathParam("groupId") int groupId, @PathParam("userId") int userId) {
         groupBean.approveMember(groupId, userId);
         return "User approved successfully";
-    }
-
-    @POST
-    @Path("/leave/{groupId}/{userId}")
-    public String leaveGroup(@PathParam("groupId") int groupId, @PathParam("userId") int userId) {
-        groupBean.leaveGroup(groupId, userId);
-        return "User left the group";
     }
 
     @DELETE
