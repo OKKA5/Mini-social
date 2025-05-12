@@ -1,31 +1,34 @@
 package ejbs;
 
 import DTOs.FriendDTO;
-import DTOs.PostDTO;
 import DTOs.UserDTO;
 import jakarta.ejb.Stateless;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import models.Friend;
-import models.Post;
 import models.User;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Stateless
 public class UserBean {
     @PersistenceContext
     EntityManager em;
+
     public String registerUser(User user) {
-        if (em.contains(user)) {
-            return "User is already registered";
-        }else{
-            em.persist(user);
-            return "User registered successfully!";
+        TypedQuery<User> query = em.createQuery(
+                "SELECT u FROM User u WHERE u.email = :email", User.class);
+        query.setParameter("email", user.getEmail());
+        List<User> existingUsers = query.getResultList();
+        if (!existingUsers.isEmpty()) {
+            return "Email is already registered";
         }
+        em.persist(user);
+        return "User registered successfully!";
     }
+
     public UserDTO findUser(int userId) {
         User user = em.find(User.class, userId);
         if (user == null) {
@@ -59,20 +62,14 @@ public class UserBean {
 
             friendsDTOs.add(new FriendDTO(
                     friendUser.getId(),
-                    friendUser.getName(),
-                    f.getStatus().name()
+                    friendUser.getName()
             ));
         }
         userDTO.setFriends(friendsDTOs);
 
-
-
-        userDTO.setFriends(friendsDTOs);
-
-
-
         return userDTO;
     }
+
 
     public String updateUser(int id, User user) {
         User u = em.find(User.class, id);
@@ -103,17 +100,17 @@ public class UserBean {
                 .getResultList();
 
         if (users.isEmpty()) {
-            return "Wrong email";
+            throw new IllegalArgumentException("Wrong email");
         }
 
         User user = users.get(0);
         if (user.getPassword().equals(password)) {
             return "User logged in successfully";
         } else {
-            return "Incorrect password";
+            throw new IllegalArgumentException("Incorrect password");
         }
     }
-
-
-
 }
+
+
+

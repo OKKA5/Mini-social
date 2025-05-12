@@ -2,9 +2,14 @@ package ejbs;
 
 import DTOs.GroupDTO;
 
+import DTOs.GroupJoinRequestDTO;
 import DTOs.PostDTO;
+import Messaging.JMSClient;
+import Messaging.NotificationEvent;
 import jakarta.ejb.Stateless;
 
+import jakarta.inject.Inject;
+import jakarta.jms.JMSContext;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
@@ -25,6 +30,9 @@ public class GroupBean {
 
     @PersistenceContext
     private EntityManager em;
+
+    @Inject
+    private JMSClient jmsClient;
 
     public GroupDTO createGroup(int UserId, Group group) {
         User creator = em.find(User.class, UserId);
@@ -58,31 +66,6 @@ public class GroupBean {
         return groupDto;
     }
 
-    public String joinGroup(int groupId, int userId) {
-        Group group = em.find(Group.class, groupId);
-        User user = em.find(User.class, userId);
-        if (group == null || user == null) return "Group or user not found";
-
-        if ("open".equalsIgnoreCase(group.getStatus())) {
-            group.getMembers().add(user);
-            em.merge(group);
-            // Trigger JMS notification here if needed
-            return "User joined successfully";
-        } else {
-            // In a real app, insert into a pending table or queue
-            return "Join request sent (pending approval)";
-        }
-    }
-
-    public void approveMember(int groupId, int userId) {
-        Group group = em.find(Group.class, groupId);
-        User user = em.find(User.class, userId);
-        if (!group.getMembers().contains(user)) {
-            group.getMembers().add(user);
-            em.merge(group);
-        }
-    }
-
     public void deleteGroup(int groupId) {
         Group group = em.find(Group.class, groupId);
         if (group != null) {
@@ -95,15 +78,20 @@ public class GroupBean {
         User user = em.find(User.class, userId);
         Group group = em.find(Group.class, groupId);
 
-        if (user == null || group == null) return "User or Group not found";
+        if (user == null || group == null) throw new IllegalArgumentException("User or Group not found");
 
         if (group.getStatus().equalsIgnoreCase("open")) {
             if (!group.getMembers().contains(user)) {
                 group.getMembers().add(user);
                 em.merge(group);
+                jmsClient.sendMessage(new NotificationEvent(
+                        "join group",
+                        user.getName(),
+                        group.getName(),
+                        user.getName() + "joined group"));
                 return "Joined group directly (open group)";
             } else {
-                return "User is already a member of the group";
+                throw new IllegalArgumentException("User is already a member of the group");
             }
         }
 
@@ -122,16 +110,25 @@ public class GroupBean {
         request.setGroup(group);
         request.setStatus(GroupJoinRequest.Status.PENDING);
         em.persist(request);
-
+        // notification sent to jms queue
+        jmsClient.sendMessage(new NotificationEvent(
+                "group request",
+                user.getName(),
+                group.getName(),
+                user.getName() + "request to join group"));
         return "Request sent and pending admin approval";
     }
 
-    public String approveRequest(int requestId) {
+    public String approveRequest(int adminId,int requestId) {
         GroupJoinRequest request = em.find(GroupJoinRequest.class, requestId);
-        if (request == null || !PENDING.equals(request.getStatus())) return "Invalid request";
-
+        if (request == null || !PENDING.equals(request.getStatus())) throw new IllegalArgumentException("Invalid request");
+        User admin = em.find(User.class, adminId);
         Group group = request.getGroup();
         User user = request.getUser();
+
+        if(!group.getAdmins().contains(admin)) {
+           throw new IllegalArgumentException ("You do not have permission to approve this request");
+        }
 
         group.getMembers().add(user);
         request.setStatus(ACCEPTED);
@@ -139,25 +136,26 @@ public class GroupBean {
 
         em.merge(group);
         em.remove(request);
-
+        // notification sent to jms queue
+        jmsClient.sendMessage(new NotificationEvent(
+                "join group",
+                user.getName(),
+                group.getName(),
+                user.getName() + "joined group"));
 
         return "Request approved";
     }
 
-    public String rejectRequest(int requestId) {
+    public String rejectRequest(int adminId,int requestId) {
         GroupJoinRequest request = em.find(GroupJoinRequest.class, requestId);
-        if (request == null || !PENDING.equals(request.getStatus())) return "Invalid request";
+        if (request == null || !PENDING.equals(request.getStatus())) throw new IllegalArgumentException("Invalid request");
+        User admin = em.find(User.class, adminId);
+        Group group = request.getGroup();
+        if(!group.getAdmins().contains(admin)) {
+            throw new IllegalArgumentException ("You do not have permission to reject this request");
+        }
         em.remove(request);
         return "Request rejected";
-    }
-
-    public List<GroupJoinRequest> getRequestsForGroup(int groupId) {
-        Group group = em.find(Group.class, groupId);
-        if (group == null) {
-            return List.of(); // or throw exception
-        }
-
-        return em.createQuery("SELECT r FROM GroupJoinRequest r WHERE r.group.id = :groupId AND r.status = 'pending'", GroupJoinRequest.class).setParameter("groupId", groupId).getResultList();
     }
 
     public String addPostToGroup(PostDTO postDTO, int groupId, int userId) {
@@ -165,12 +163,12 @@ public class GroupBean {
         Group group = em.find(Group.class, groupId);
 
         if (user == null || group == null) {
-            return "User or group not found";
+            throw new IllegalArgumentException("User or group not found");
         }
 
         if ("closed".equalsIgnoreCase(group.getStatus())) {
             if (!group.getMembers().contains(user)) {
-                return "User is not a member of the closed group";
+                throw new IllegalArgumentException("User is not a member of the closed group");
             }
         }
 
@@ -182,7 +180,6 @@ public class GroupBean {
 
         em.persist(post);
         em.merge(group);
-
         return "Post added to group successfully";
     }
 
@@ -191,10 +188,10 @@ public class GroupBean {
         User user = em.find(User.class, userId);
         Group group = em.find(Group.class, groupId);
         if (user == null || group == null) {
-            return "User or group not found";
+            throw new IllegalArgumentException("User or group not found");
         }
         if (post == null) {
-            return "Post not found";
+            throw new IllegalArgumentException("Post not found");
         }
 
         boolean isPostOwner = post.getUser().getId() == userId;
@@ -205,7 +202,7 @@ public class GroupBean {
             em.remove(post);
             return "Post removed from group successfully";
         } else {
-            return "You are not authorized to remove this post";
+            throw new IllegalArgumentException("You are not authorized to remove this post");
         }
     }
 
@@ -218,7 +215,7 @@ public class GroupBean {
             em.remove(group);
             return "group Deleted successfully";
         } else {
-            return "You are not authorized to delete this group";
+            throw new IllegalArgumentException("You are not authorized to delete this group");
         }
     }
 
@@ -227,18 +224,18 @@ public class GroupBean {
         User admin = em.find(User.class, adminId);
         Group group = em.find(Group.class, groupId);
         if (user == null || admin == null || group == null) {
-            return "User, admin, or group not found";
+            throw new IllegalArgumentException("User, admin, or group not found");
         }
         boolean isGroupAdmin = group.getAdmins().contains(admin);
         boolean isGroupMember = group.getMembers().contains(user);
         if (!isGroupAdmin) {
-            return "You are not authorized to remove this user";
+            throw new IllegalArgumentException("You are not authorized to remove this user");
         }
         if (userId == adminId) {
-            return "You cannot remove yourself instead you can leave this group";
+            throw new IllegalArgumentException("You cannot remove yourself instead you can leave this group");
         }
         if (!isGroupMember) {
-            return "User is not a member of the group";
+            throw new IllegalArgumentException("User is not a member of the group");
         }
         group.getMembers().remove(user);
         em.merge(group);
@@ -250,20 +247,21 @@ public class GroupBean {
         User user = em.find(User.class, userId);
         User admin = em.find(User.class, adminId);
         if (user == null || admin == null || group == null) {
-            return "User, admin, or group not found";
+            throw new IllegalArgumentException("User, admin, or group not found");
         }
         boolean isGroupMember = group.getMembers().contains(user);
         boolean isGroupAdmin = group.getAdmins().contains(admin);
         if (!isGroupMember) {
-            return "the user with id : " + userId + "is not a member of the group";
+            throw new IllegalArgumentException("the user with id : " + userId + " is not a member of the group");
         }
-        if (userId == adminId) {
-            return "you are already an admin";
+        if(group.getAdmins().contains(user)) {
+            throw new IllegalArgumentException("this user is already an admin");
         }
         if (!isGroupAdmin) {
-            return "You are not authorized to promote users";
+            throw new IllegalArgumentException("You are not authorized to promote users");
         } else {
             group.getAdmins().add(user);
+
             return "user promoted";
         }
     }
@@ -272,32 +270,41 @@ public class GroupBean {
         User user = em.find(User.class, userId);
         Group group = em.find(Group.class, groupId);
         if (user == null || group == null) {
-            return "User or group not found";
+            throw new IllegalArgumentException("User or group not found");
         }
         boolean isGroupMember = group.getMembers().contains(user);
         boolean isGroupAdmin = group.getAdmins().contains(user);
 
         if (!isGroupMember) {
-            return "user is not a member of that group ";
+            throw new IllegalArgumentException("user is not a member of that group ");
         }
-        if (isGroupAdmin && isGroupMember) {
+        if (isGroupAdmin) {
             group.getAdmins().remove(user);
             group.getMembers().remove(user);
-            if (group.getAdmins().size() == 0) {
-                if (group.getMembers().size() == 0) {
+            if (group.getAdmins().isEmpty()) {
+                if (group.getMembers().isEmpty()) {
                     em.remove(group);
                     return "Group removed";
                 } else {
                     group.getAdmins().add(group.getMembers().get(0));
                 }
             }
-
+            // notification sent to jms queue
+            jmsClient.sendMessage(new NotificationEvent(
+                    "leave group",
+                    user.getName(),
+                    group.getName(),
+                    user.getName() + "left group"));
+            em.merge(group);
             return "Left Group";
         }
-        if (isGroupMember) {
-            group.getMembers().remove(user);
-            return "Left Group";
-        }
+        // notification sent to jms queue
+        group.getMembers().remove(user);
+        jmsClient.sendMessage(new NotificationEvent(
+                "leave group",
+                user.getName(),
+                group.getName(),
+                user.getName() + "left group"));
         em.merge(group);
         return "left Group";
     }

@@ -1,7 +1,10 @@
 package ejbs;
 
 import DTOs.FriendDTO;
+import Messaging.JMSClient;
+import Messaging.NotificationEvent;
 import jakarta.ejb.Stateless;
+import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import models.Friend;
@@ -16,6 +19,9 @@ public class FriendBean {
     @PersistenceContext
     private EntityManager em;
 
+    @Inject
+    JMSClient jmsClient;
+
     public List<FriendDTO> viewConnections(int userId) {
         List<Friend> friends = em.createQuery(
                         "SELECT f FROM Friend f WHERE (f.requester.id = :userId OR f.receiver.id = :userId) AND f.status = :status",
@@ -27,12 +33,11 @@ public class FriendBean {
         List<FriendDTO> result = new ArrayList<>();
         for (Friend f : friends) {
             User other = (f.getRequester().getId() == userId) ? f.getReceiver() : f.getRequester();
-            result.add(new FriendDTO(other.getId(), other.getName(), f.getStatus().toString()));
+            result.add(new FriendDTO(other.getId(), other.getName()));
         }
 
         return result;
     }
-
     public List<FriendDTO> getIncomingRequests(int userId) {
         List<Friend> incoming = em.createQuery(
                         "SELECT f FROM Friend f WHERE f.receiver.id = :userId AND f.status = :status", Friend.class)
@@ -44,58 +49,47 @@ public class FriendBean {
         for (Friend f : incoming) {
             result.add(new FriendDTO(
                     f.getRequester().getId(),
-                    f.getRequester().getName(),
-                    f.getStatus().toString()
+                    f.getRequester().getName()
             ));
         }
         return result;
     }
-
-    public List<FriendDTO> getOutgoingRequests(int userId) {
-        List<Friend> outgoing = em.createQuery(
-                        "SELECT f FROM Friend f WHERE f.requester.id = :userId AND f.status = :status", Friend.class)
-                .setParameter("userId", userId)
-                .setParameter("status", Friend.Status.PENDING)
-                .getResultList();
-
-        List<FriendDTO> result = new ArrayList<>();
-        for (Friend f : outgoing) {
-            result.add(new FriendDTO(
-                    f.getReceiver().getId(),
-                    f.getReceiver().getName(),
-                    f.getStatus().toString()
-            ));
-        }
-        return result;
-    }
-
     public String friendRequest(int requesterId, int receiverId) {
         if (requesterId == receiverId)
-            return "You cannot send a friend request to yourself.";
+            throw new IllegalArgumentException("You cannot send a friend request to yourself.");
 
-        User u1 = em.find(User.class, Math.min(requesterId, receiverId));
-        User u2 = em.find(User.class, Math.max(requesterId, receiverId));
+        User requester = em.find(User.class, requesterId);
+        User receiver = em.find(User.class, receiverId);
 
-        if (u1 == null || u2 == null)
-            return "User not found.";
+        if (requester == null || receiver == null)
+            throw new IllegalArgumentException ("User not found.");
 
         Long count = em.createQuery(
-                        "SELECT COUNT(f) FROM Friend f WHERE f.requester.id = :id1 AND f.receiver.id = :id2", Long.class)
-                .setParameter("id1", u1.getId())
-                .setParameter("id2", u2.getId())
+                        "SELECT COUNT(f) FROM Friend f WHERE " +
+                                "(f.requester.id = :id1 AND f.receiver.id = :id2) OR " +
+                                "(f.requester.id = :id2 AND f.receiver.id = :id1)", Long.class)
+                .setParameter("id1", requester.getId())
+                .setParameter("id2", receiver.getId())
                 .getSingleResult();
 
         if (count > 0)
-            return "Friend request already exists or users are already connected.";
+            throw new IllegalArgumentException("Friend request already exists or users are already connected.");
 
         Friend friend = new Friend();
-        friend.setRequester(u1);
-        friend.setReceiver(u2);
+        friend.setRequester(requester);
+        friend.setReceiver(receiver);
         friend.setStatus(Friend.Status.PENDING);
         em.persist(friend);
 
+        jmsClient.sendMessage(new NotificationEvent(
+                "Friend Request",
+                requester.getName(),
+                receiver.getName(),
+                requester.getName() + " sent you a friend request"));
+
         return "Friend request sent.";
     }
+
 
     public String acceptFriendRequest(int requesterId, int receiverId) {
         int id1 = Math.min(requesterId, receiverId);

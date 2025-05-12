@@ -3,7 +3,10 @@ package ejbs;
 import DTOs.CommentDTO;
 import DTOs.PostDTO;
 import DTOs.ReactionDTO;
+import Messaging.JMSClient;
+import Messaging.NotificationEvent;
 import jakarta.ejb.Stateless;
+import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import models.*;
@@ -16,6 +19,8 @@ public class PostBean {
     @PersistenceContext
     private EntityManager em;
 
+    @Inject
+    private JMSClient jmsClient;
 
     public PostDTO findPost(int postId) {
         Post p = em.find(Post.class, postId);
@@ -35,21 +40,17 @@ public class PostBean {
             List <Post> userPosts = em.createQuery("SELECT p FROM Post p WHERE p.user.id = :userId", Post.class)
                     .setParameter("userId", userId)
                     .getResultList();
-            List<Post> requesterFriendsPosts = em.createQuery("""
-            SELECT p FROM Post p
-            WHERE p.user.id IN (
-            SELECT f.receiver.id FROM Friend f 
-            WHERE f.requester.id = :userId AND f.status = 'ACCEPTED'
-                            )
-            """, Post.class).setParameter("userId", userId).getResultList();
+            List<Post> requesterFriendsPosts = em.createQuery( "SELECT p FROM Post p " +
+                    "WHERE p.user.id IN (" +
+                    "  SELECT f.receiver.id FROM Friend f " +
+                    "  WHERE f.requester.id = :userId AND f.status = 'ACCEPTED'" +
+                    ")", Post.class).setParameter("userId", userId).getResultList();
 
-            List<Post> receiverFriendsPosts = em.createQuery("""
-            SELECT p FROM Post p
-            WHERE p.user.id IN (
-            SELECT f.requester.id FROM Friend f 
-            WHERE f.receiver.id = :userId AND f.status = 'ACCEPTED'
-                            )
-            """, Post.class).setParameter("userId", userId).getResultList();
+            List<Post> receiverFriendsPosts = em.createQuery("SELECT p FROM Post p " +
+                    "WHERE p.user.id IN (" +
+                    "  SELECT f.requester.id FROM Friend f " +
+                    "  WHERE f.receiver.id = :userId AND f.status = 'ACCEPTED'" +
+                    ")", Post.class).setParameter("userId", userId).getResultList();
 
             List<Post> userFriendsPosts = new ArrayList<>();
             userFriendsPosts.addAll(requesterFriendsPosts);
@@ -62,7 +63,7 @@ public class PostBean {
             List <PostDTO> postDTOs = new ArrayList<>();
             for (Post p : feed) {
                 PostDTO dto = new PostDTO().toPostDTO(p);
-                postDTOs.add(dto.toPostDTO(p));
+                postDTOs.add(dto);
             }
             return postDTOs;
         }
@@ -79,28 +80,38 @@ public class PostBean {
         return "Post created successfully";
     }
 
-    public Post updatePost(int postId, Post post) {
+    public String updatePost(int userId,int postId, Post post) {
         Post existingPost = em.find(Post.class, postId);
-        if (existingPost != null) {
-            existingPost.setDescription(post.getDescription());
-            existingPost.setImageURL(post.getImageURL());
-            em.merge(existingPost);
-            return existingPost;
-        } else {
-            throw new IllegalArgumentException("Post not found");
+        if(userId == existingPost.getUser().getId()) {
+            if (existingPost != null) {
+                existingPost.setDescription(post.getDescription());
+                existingPost.setImageURL(post.getImageURL());
+                em.merge(existingPost);
+                return "Post updated successfully";
+
+            } else {
+                throw new IllegalArgumentException("Post not found");
+            }
+        }else {
+               throw new IllegalArgumentException("you can't update this post");
         }
     }
 
-    public void deletePost(int postId) {
+    public String deletePost(int userId,int postId) {
         Post post = em.find(Post.class, postId);
+        if (post.getUser().getId() == userId) {
         if (post != null) {
             em.remove(post);
+            return "Post deleted successfully";
         } else {
             throw new IllegalArgumentException("Post not found");
         }
+        }else{
+            throw new IllegalArgumentException("you can't delete this post");
+        }
     }
 
-    public void addCommentToPost(int userId,int postId, Comment comment) {
+    public String addCommentToPost(int userId,int postId, Comment comment) {
         Post post = em.find(Post.class, postId);
         User user = em.find(User.class, userId);
         if (post == null) {
@@ -110,10 +121,18 @@ public class PostBean {
         comment.setAuthor(user.getName());
         comment.setPost(post);
         post.getComments().add(comment);
+
+        //sent notification to jms queue
+        jmsClient.sendMessage(new NotificationEvent(
+                "comment added",
+                user.getName(),
+                post.getUser().getName(),
+                user.getName() + " commented on " + post.getUser().getName() + "'s post"));
         em.persist(comment);
+        return "comment added successfully";
     }
 
-    public void addReactionToPost(int userId,int postId, Reaction reaction) {
+    public String addReactionToPost(int userId,int postId, Reaction reaction) {
         User user = em.find(User.class, userId);
         Post post = em.find(Post.class, postId);
         if (post == null) {
@@ -123,32 +142,14 @@ public class PostBean {
         reaction.setAuthor(user.getName());
         reaction.setPost(post);
         post.getReactions().add(reaction);
+
+        //sent notification to jms queue
+        jmsClient.sendMessage(new NotificationEvent(
+                "reaction added",
+                user.getName(),
+                post.getUser().getName(),
+                user.getName() + " reacted on " + post.getUser().getName() + "'s post"));
         em.persist(reaction);
+        return "reaction added successfully";
     }
-
-    public String addPostToGroup(int userId, int groupId, String description, String imageUrl) {
-        Group group = em.find(Group.class, groupId);
-        User user = em.find(User.class, userId);
-
-        if (group == null || user == null) {
-            return "Group or User not found";
-        }
-
-        if (!group.getMembers().contains(user)) {
-            return "User is not a member of the group";
-        }
-
-        Post post = new Post();
-        post.setDescription(description);
-        post.setImageURL(imageUrl);
-        post.setUser(user);
-        post.setGroups(group);
-
-        em.persist(post);
-        return "Post added successfully";
-    }
-
-
-
-
 }

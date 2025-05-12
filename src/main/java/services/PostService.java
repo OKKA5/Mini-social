@@ -22,9 +22,6 @@ public class PostService {
     @EJB
     private PostBean postBean;
 
-    // Convert Post entity to PostDTO
-
-
     @GET
     @Path("{id}")
     public PostDTO getPost(@PathParam("id") int postId) {
@@ -38,31 +35,27 @@ public class PostService {
     }
 
     @PUT
-    @Path("{id}")
-    public String updatePost(@PathParam("id") int postId, Post post) {
-        Post updatedPost = postBean.updatePost(postId, post);
-        return "Post updated successfully";
+    @Path("/update")
+    public String updatePost(@QueryParam("userId") int userId,@QueryParam("postId") int postId, Post post) {
+         return postBean.updatePost(userId,postId, post);
     }
 
     @DELETE
-    @Path("{id}")
-    public String deletePost(@PathParam("id") int postId) {
-        postBean.deletePost(postId);
-        return "Post deleted successfully";
+    @Path("/delete")
+    public String deletePost(@QueryParam("userId") int userId,@QueryParam("postId") int postId) {
+        return postBean.deletePost(userId,postId);
     }
 
 
     @POST
     @Path("/comment")
     public String addComment(@QueryParam("userId") int userId,@QueryParam("postId") int postId, Comment comment) {
-        postBean.addCommentToPost(userId,postId, comment);
-        return "Comment added successfully";
+        return postBean.addCommentToPost(userId,postId, comment);
     }
     @POST
     @Path("/reaction")
     public String addComment(@QueryParam("userId") int userId,@QueryParam("postId") int postId, Reaction reaction) {
-        postBean.addReactionToPost(userId,postId, reaction);
-        return "Reaction added successfully";
+        return postBean.addReactionToPost(userId,postId, reaction);
     }
 
     @GET

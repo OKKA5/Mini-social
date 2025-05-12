@@ -17,11 +17,11 @@ public class Friend {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    private User requester;  // requester
+    private User requester;
 
     @ManyToOne
     @JoinColumn(name = "friend_id", nullable = false)
-    private User receiver; // receiver
+    private User receiver;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

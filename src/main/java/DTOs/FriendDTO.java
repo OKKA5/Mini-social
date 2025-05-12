@@ -3,14 +3,12 @@ package DTOs;
 public class FriendDTO {
     private int Id;
     private String friendName;
-    private String status;
 
     public FriendDTO() {}
 
-    public FriendDTO(int Id, String friendName, String status) {
+    public FriendDTO(int Id, String friendName) {
         this.Id = Id;
         this.friendName = friendName;
-        this.status = status;
     }
 
     public int getId() {
@@ -27,13 +25,5 @@ public class FriendDTO {
 
     public void setFriendName(String friendName) {
         this.friendName = friendName;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
     }
 }

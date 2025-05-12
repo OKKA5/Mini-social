@@ -13,7 +13,7 @@ import models.Friend;
 import java.util.List;
 
 @Stateless
-@Path("/Friend")
+@Path("/friend")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class FriendService {
@@ -27,6 +27,11 @@ public class FriendService {
         return friendBean.viewConnections(userId);
     }
 
+    @GET
+    @Path("/friend-request/{userId}")
+    public List<FriendDTO> getFriendRequests(@PathParam("userId") int userId) {
+        return friendBean.getIncomingRequests(userId);
+    }
     @POST
     @Path("/request")
     public String sendRequest(
@@ -35,9 +40,6 @@ public class FriendService {
         return friendBean.friendRequest(requesterId, receiverId);
     }
 
-    /**
-     * Accept a friend request
-     */
     @PUT
     @Path("/accept")
     public String acceptRequest(
@@ -46,15 +48,14 @@ public class FriendService {
         return friendBean.acceptFriendRequest(requesterId, receiverId);
     }
 
-    /**
-     * Reject a friend request
-     */
-    @PUT  // Changed from GET to PUT since this is modifying data
+
+    @PUT
     @Path("/reject")
     public String rejectRequest(
             @QueryParam("requesterId") int requesterId,
             @QueryParam("receiverId") int receiverId) {
         return friendBean.rejectFriendRequest(requesterId, receiverId);
     }
+
 
 }

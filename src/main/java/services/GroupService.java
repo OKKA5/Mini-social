@@ -1,7 +1,6 @@
 package services;
 
 import DTOs.GroupDTO;
-import DTOs.GroupJoinRequestDTO;
 import DTOs.PostDTO;
 import ejbs.GroupBean;
 import jakarta.ejb.EJB;
@@ -9,9 +8,6 @@ import jakarta.ejb.Stateless;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import models.Group;
-import models.GroupJoinRequest;
-
-import java.util.List;
 
 
 @Stateless
@@ -37,13 +33,6 @@ public class GroupService {
         return groupBean.findGroupById(groupId);
     }
 
-
-    @POST
-    @Path("/approve/{groupId}/{userId}")
-    public String approveMember(@PathParam("groupId") int groupId, @PathParam("userId") int userId) {
-        groupBean.approveMember(groupId, userId);
-        return "User approved successfully";
-    }
 
     @DELETE
     @Path("/delete/{groupId}")
@@ -73,29 +62,15 @@ public class GroupService {
     }
 
     @POST
-    @Path("/approve/{requestId}")
-    public String approve(@PathParam("requestId") int requestId) {
-        return groupBean.approveRequest(requestId);
+    @Path("/approve")
+    public String approveRequest(@QueryParam("adminId")int adminId,@QueryParam("requestId") int requestId) {
+        return groupBean.approveRequest(adminId,requestId);
     }
 
     @POST
-    @Path("/reject/{requestId}")
-    public String reject(@PathParam("requestId") int requestId) {
-        return groupBean.rejectRequest(requestId);
-    }
-
-    @GET
-    @Path("/{groupId}/requests")
-    public List<GroupJoinRequestDTO> getJoinRequests(@PathParam("groupId") int groupId) {
-        List<GroupJoinRequest> requests = groupBean.getRequestsForGroup(groupId);
-
-        return requests.stream()
-                .map(r -> new GroupJoinRequestDTO(
-                        r.getId(),
-                        r.getUser().getId(),
-                        r.getUser().getName(),
-                        r.getStatus()))
-                .toList();
+    @Path("/reject")
+    public String rejectRequest(@QueryParam("adminId")int adminId,@QueryParam("requestId") int requestId) {
+        return groupBean.rejectRequest(adminId,requestId);
     }
 
     @POST

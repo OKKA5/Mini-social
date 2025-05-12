@@ -1,5 +1,6 @@
 package services;
 
+import DTOs.LoginDTO;
 import DTOs.UserDTO;
 import ejbs.UserBean;
 import jakarta.ejb.EJB;
@@ -34,8 +35,8 @@ public class UserService {
     }
     @POST
     @Path("login")
-    public String userLogin(String email, String password) {
-        return userBean.userLogin(email, password);
+    public String userLogin(LoginDTO loginDTO) {
+        return userBean.userLogin(loginDTO.getEmail(), loginDTO.getPassword());
     }
 
 }
